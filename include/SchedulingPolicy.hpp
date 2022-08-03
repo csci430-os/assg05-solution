@@ -13,7 +13,7 @@
  * newProcess() arrives, a process runs a runCpuCycle(), and when a
  * process finished().  The main method of this stategy abstraction is
  * the dispatch() method, which is called by the scheduling simulator
- * whenever the cpu is idle, and the scheduling policy needs to make a
+t * whenever the cpu is idle, and the scheduling policy needs to make a
  * decision.
  */
 #ifndef SCHEDULING_POLICY_HPP

@@ -61,6 +61,9 @@ const int SEED_TIME = 0;
  */
 struct Process
 {
+  /// @brief The assigned process identifier for this process
+  Pid pid;
+  
   /// @brief A human readable/string name assigned to the process
   string name;
 
@@ -84,8 +87,19 @@ struct Process
   /// @brief While the simulation is running, this will keep track
   ///   of the total time used so far, so we can determine when
   ///   the process is finished by comparing to the serviceTime
-  int timeUsed;
+  int usedTime;
 
+  /// @brief Keep track of time remaining, useful for SRT
+  ///   process scheduler
+  int remainingTime;
+
+  /// @brief The amount of time currently spent waiting by this process
+  int waitTime;
+
+  /// @brief The current response ratio of this process, which is
+  ///   calculated as (timeWait + serviceTime) / serviceTime
+  float responseRatio;
+  
   /// @brief A boolean that will be false when the process is first
   ///    arrived/created.  It will be set to true when the process
   ///    is finished.  When all processes in the process table are
@@ -149,6 +163,7 @@ public:
   int getNumProcesses() const;
   bool isCpuIdle() const;
   string getRunningProcessName() const;
+  Pid getRunningPid() const;
   Process* getProcessTable() const;
   bool allProcessesDone() const;
   string finalResultsTable() const;
@@ -162,10 +177,12 @@ public:
 
   // methods for running paging system simulation
   void checkProcessArrivals();
+  bool didProcessArrive() const;
   void dispatchCpuIfIdle();
   void simulateCpuCycle();
   void checkProcessFinished();
   void checkProcessPreemption();
+  void updateProcessStatistics();
   void runSimulation(bool verbose = false);
 };
 

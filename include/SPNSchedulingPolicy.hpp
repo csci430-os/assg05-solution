@@ -9,39 +9,49 @@
  * Header include file for our SPNSchedulingPolicy class.
  * This is a concrete child class implementation of a
  * SchedulingPolicy strategy.  This policy implements a
- * non-preemptive SPN
+ * non-preemptive shortest process next (SPN) policy.
  */
 #ifndef SPNSCHEDULING_POLICY_HPP
 #define SPNSCHEDULING_POLICY_HPP
 
 #include "SchedulingSystem.hpp"
-#include <queue>
 #include <string>
+#include <queue>
 
 // forward declaration needed for circular references
 class SchedulingSystem;
 
 using namespace std;
 
-/// @brief More descriptive name for things that hold process
-///   identifiers.  We use int values for our processes identifiers
-///   in this simulation.
-typedef int Pid;
+/** @class ShortestProcessNext
+ * @brief Shortest Process Next priority_queue comparator 
+ *
+ * A wrapper class to create a comparison of service time
+ * for process objects.  The operator is called by a 
+ * stl priority_queue to determine priority of processes.  We
+ * order processes by their service time in order to implement
+ * selecting the shortest process next from the priority queue
+ * when we need to dispatch.
+ */
+struct ShortestProcessNext
+{
+  bool operator()(const Process& lhs, const Process& rhs) const
+  {
+    return rhs.serviceTime < lhs.serviceTime;
+  }
+};
 
 /** @class SPNSchedulingPolicy
  * @brief SPNSchedulingPolicy abstract base class
  *
- * This class defines the interface or API for the helper page
- * replacement scheme.  A PagingSystem simulation will instanciate
- * a derived class of this API, and will expect it to implement the
- * interface defined by this abstract base class.
+ * This class defines the interface or API for the helper scheduling
+ * policy instance.
  */
 class SPNSchedulingPolicy : public SchedulingPolicy
 {
 private:
-  /// @brief The ready queue for the SPN policy, keeps track of
-  ///   which process arrived first for dispatching.
-  queue<Pid> readyQueue;
+  /// @brief The list of waiting processes currently in the system
+  priority_queue<Process, vector<Process>, ShortestProcessNext> processQueue;
 
 public:
   SPNSchedulingPolicy();
@@ -55,5 +65,6 @@ public:
   bool preempt();
   void resetPolicy();
 };
+
 
 #endif // SPNSCHEDULING_POLICY_HPP

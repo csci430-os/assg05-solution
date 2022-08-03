@@ -10,7 +10,10 @@
  * Simulator, used to perform system tests.
  */
 #include "FCFSSchedulingPolicy.hpp"
+#include "HRRNSchedulingPolicy.hpp"
 #include "SPNSchedulingPolicy.hpp"
+#include "SRTSchedulingPolicy.hpp"
+#include "RRSchedulingPolicy.hpp"
 #include "SchedulingSystem.hpp"
 #include "SimulatorException.hpp"
 #include <iostream>
@@ -38,7 +41,8 @@ void usage()
        << endl
        << "Options:" << endl
        << "  policy       The page job scheduling policy to use, current" << endl
-       << "               'FCFS', 'RR', 'SPN' are valid and supported" << endl
+       << "               'FCFS', `HRRN', 'RR', 'SPN', 'SRT' are valid" << endl
+       << "               and supported" << endl
        << "  process-table.sim|RND  Filename of process table information to" << endl
        << "               to be used for the simulation.  RND indicates generate" << endl
        << "               a random process table." << endl
@@ -96,9 +100,21 @@ int main(int argc, char** argv)
   {
     policy = new FCFSSchedulingPolicy();
   }
+  else if (policyName == "HRRN")
+  {
+    policy = new HRRNSchedulingPolicy();
+  }
   else if (policyName == "SPN")
   {
     policy = new SPNSchedulingPolicy();
+  }
+  else if (policyName == "SRT")
+  {
+    policy = new SRTSchedulingPolicy();
+  }
+  else if (policyName == "RR")
+  {
+    policy = new RRSchedulingPolicy(quantum);
   }
   /*  example of adding additional policies to the simulation
      else if (policyName == "RR")

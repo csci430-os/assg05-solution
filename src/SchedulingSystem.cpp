@@ -195,6 +195,22 @@ string SchedulingSystem::getRunningProcessName() const
   }
 }
 
+/** @brief get pid of running process
+ *
+ * Returns the process identifier (pid) of the process
+ * that is currently running.  This pid can be the
+ * special IDLE pid flag if there is currently no process
+ * running on the cpu.
+ *
+ * @returns Pid Returns the process identifier (pid) of the
+ *   current running process, or the IDLE flag if the cpu
+ *   is currently idle.
+ */
+Pid SchedulingSystem::getRunningPid() const
+{
+  return cpu;
+}
+
 /** @brief get process table
  *
  * Get a handle/pointer to the simulation process table. This
@@ -355,9 +371,11 @@ void SchedulingSystem::loadProcessTable(string simfilename)
     processfile >> process[pid].name >> process[pid].arrivalTime >> process[pid].serviceTime;
 
     // initialize other variables to initial states
+    process[pid].pid = pid;
     process[pid].startTime = NOT_STARTED;
     process[pid].endTime = NOT_STARTED;
-    process[pid].timeUsed = 0;
+    process[pid].usedTime = 0;
+    process[pid].remainingTime = process[pid].serviceTime;
     process[pid].done = false;
 
     // increment process identifier in preparation for reading
@@ -450,6 +468,7 @@ void SchedulingSystem::generateRandomProcessTable(int numProcesses, double arriv
       int serviceTime = (rand() % maxServiceTime) + 1;
 
       // enter the new process into the table
+      process[pid].pid = pid;
       process[pid].name = name;
       process[pid].arrivalTime = time;
       process[pid].serviceTime = serviceTime;
@@ -457,7 +476,8 @@ void SchedulingSystem::generateRandomProcessTable(int numProcesses, double arriv
       // initialize other variables to initial states
       process[pid].startTime = NOT_STARTED;
       process[pid].endTime = NOT_STARTED;
-      process[pid].timeUsed = 0;
+      process[pid].usedTime = 0;
+      process[pid].remainingTime = process[pid].serviceTime;
       process[pid].done = false;
 
       // increment the process identifier for next process we create
@@ -519,6 +539,32 @@ void SchedulingSystem::checkProcessArrivals()
 }
 
 /**
+ * @brief check if a process did arrive
+ *
+ * Convenience method for some policies.  If a process does
+ * arrive at the current time, return true so that policies that
+ * preempt on process arrivales cand ask for a preemption.
+ *
+ * @returns bool True if a process did arrive at the current system
+ *   time, false if not.
+ */
+bool SchedulingSystem::didProcessArrive() const
+{
+  // search process table to see if a process is arriving at
+  // the current time
+  for (Pid pid = 0; pid < numProcesses; pid++)
+  {
+    if (process[pid].arrivalTime == systemTime)
+    {
+      return true;
+    }
+  }
+
+  // otherwise no process is arriving at the current system time
+  return false;
+}
+
+/**
  * @brief dispatch cpu
  *
  * If the cpu is currently idle try and dispatch a process,
@@ -577,7 +623,8 @@ void SchedulingSystem::simulateCpuCycle()
   // the history of its execution
   if (not isCpuIdle())
   {
-    process[cpu].timeUsed++;
+    process[cpu].usedTime++;
+    process[cpu].remainingTime--;
     schedule += (process[cpu].name + "  ");
   }
   else // record cpu idle during this time period
@@ -599,7 +646,7 @@ void SchedulingSystem::checkProcessFinished()
   // Again if the cpu is currently idle, then there is nothing
   // to do here, so you should first check if the cpu is idle
   // and just return without doing anything if it is.
-  // If it is not idle, you need to see if the timeUsed of
+  // If it is not idle, you need to see if the usedTime of
   // the current cpu process is greater than or equal to its
   // serviceTime, which is how you know if it is finished or not.
   // If the process is finished you have to do the following:
@@ -616,7 +663,7 @@ void SchedulingSystem::checkProcessFinished()
   }
 
   // if process is not yet finished, also nothing yet to do
-  if (process[cpu].timeUsed < process[cpu].serviceTime)
+  if (process[cpu].usedTime < process[cpu].serviceTime)
   {
     return;
   }
@@ -659,6 +706,33 @@ void SchedulingSystem::checkProcessPreemption()
 }
 
 /**
+ * @brief update process data
+ *
+ * Update all current ready/running processes statistics and
+ * information.  Primarly, if a process is currently in the system,
+ * and is not done, then update its wait time and response ratio
+ * calculations.  These in particular are useful for HRRN
+ * scheduling policies to have.
+ */
+void SchedulingSystem::updateProcessStatistics()
+{
+  // search all processes in the process table
+  for (Pid pid = 0; pid < numProcesses; pid++)
+  {
+    // if the process has started but is not yet done, update
+    // its information
+    if ((systemTime >= process[pid].arrivalTime) and (not process[pid].done))
+    {
+      // update the wait time for this process
+      process[pid].waitTime = systemTime - process[pid].arrivalTime;
+
+      // update this processes response ratio
+      process[pid].responseRatio = float(process[pid].serviceTime + process[pid].waitTime) / float(process[pid].serviceTime);
+    }
+  }
+}
+
+/**
  * @brief run simulation
  *
  * Run a full simulation of a process scheduling system.  Before
@@ -695,6 +769,8 @@ void SchedulingSystem::runSimulation(bool verbose)
   string schedule = "";
   while (not allProcessesDone())
   {
+    //cout << "runSimulation()> systemTime: " << systemTime << endl;
+    
     // check for new arrivals at this time step so can notify
     // our scheduling policy to add new processs they are managing
     checkProcessArrivals();
@@ -711,6 +787,10 @@ void SchedulingSystem::runSimulation(bool verbose)
 
     // determine if process has finished
     checkProcessFinished();
+
+    // update data/statistics of process after each clock cycle so information
+    // is up to date for scheduling policies to use
+    updateProcessStatistics();
   }
 
   // Display scheduling simulation results if asked too

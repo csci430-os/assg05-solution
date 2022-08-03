@@ -1,17 +1,18 @@
-/** @file SPNSchedulingPolicy.hpp
- * @brief SPNSchedulingPolicy class implementation file
+/** @file HRRNSchedulingPolicy.hpp
+ * @brief HRRNSchedulingPolicy class implementation file
  *
  * @author Student Name
  * @note   cwid: 123456
- * @date   Fall 2019
+ * @date   Summer 2022
  * @note   ide:  g++ 8.2.0 / GNU Make 4.2.1
  *
- * Implementation file for our SPNSchedulingPolicy class.  The
- * SPNSchedulingPolicy is a concrete child class implementation of
+ * Implementation file for our HRRNSchedulingPolicy class.  The
+ * HRRNSchedulingPolicy is a concrete child class implementation of
  * a SchedulingPolicy strategy.  This policy implements the
- * non-preemptive shortest process next (SPN) policy.
+ * non preemptive highest response ratio next (HRRN)
+ * scheduling policy.
  */
-#include "SPNSchedulingPolicy.hpp"
+#include "HRRNSchedulingPolicy.hpp"
 #include <climits>
 #include <queue>
 #include <iostream>
@@ -22,11 +23,11 @@ using namespace std;
 /**
  * @brief constructor
  *
- * The default constructor is called when a SPN policy instance
- * is created.  This policy has not system/meta parameters,
+ * The default constructor is called when a HRRN policy instance
+ * is created.  This policy has no system/meta parameters,
  * so no parameters are needed when creating the policy instance.
  */
-SPNSchedulingPolicy::SPNSchedulingPolicy()
+HRRNSchedulingPolicy::HRRNSchedulingPolicy()
   : SchedulingPolicy()
 {
   sys = NULL;
@@ -40,7 +41,7 @@ SPNSchedulingPolicy::SPNSchedulingPolicy()
  * Define a concrete destructor.  This destructor has no work to do, but
  * base classes that need a destructor should define their own.
  */
-SPNSchedulingPolicy::~SPNSchedulingPolicy()
+HRRNSchedulingPolicy::~HRRNSchedulingPolicy()
 {
 }
 
@@ -56,11 +57,11 @@ SPNSchedulingPolicy::~SPNSchedulingPolicy()
  * @param pid The process identifier (pid) of the newly arriving
  *   process that should now be managed by this policy.
  */
-void SPNSchedulingPolicy::newProcess(Pid pid)
+void HRRNSchedulingPolicy::newProcess(Pid pid)
 {
   // get a reference to the process to add to the priority queue
   Process* processTable = sys->getProcessTable();
-  Process newProcess = processTable[pid];
+  Process* newProcess = &processTable[pid];
 
   // add this process to the processQueue priority queue
   processQueue.push(newProcess);
@@ -72,15 +73,14 @@ void SPNSchedulingPolicy::newProcess(Pid pid)
  *
  * When the cpu is idle, the scheduling simulator calls this
  * method of the policy object to select which process to
- * dispatch and schedule and run next on the cpu.  The SPN
- * policy has to search the waiting processes to determine
- * which process that is waiting has the shorted service
- * time.
+ * dispatch and schedule and run next on the cpu.  The HRRN
+ * policy selects the ready process in the process priority
+ * queue with the current highest response ratio.
  *
  * @returns Pid Returns the process identifier of the process
  *   we select to run next.
  */
-Pid SPNSchedulingPolicy::dispatch()
+Pid HRRNSchedulingPolicy::dispatch()
 {
   // make sure the process queue is not empty, if it is return IDLE to
   // indicate we can't dispatch at this time
@@ -92,9 +92,19 @@ Pid SPNSchedulingPolicy::dispatch()
   // as next process to run
   else
   {
-    Process process = processQueue.top();
+    // KLUDGE: this is a kludge, need to fix it, but take out all processes and reinsert
+    // them so the heap reorders using current response ratio
+    priority_queue<Process*, vector<Process*>, HighestResponseRatioNext> q;
+    while (not processQueue.empty())
+    {
+      q.push(processQueue.top());
+      processQueue.pop();
+    }
+    swap(q, processQueue);
+
+    Process* process = processQueue.top();
     processQueue.pop();
-    return process.pid;
+    return process->pid;
   }
 }
 
@@ -102,17 +112,16 @@ Pid SPNSchedulingPolicy::dispatch()
 /**
  * @brief preemption
  *
- * SPN is a non-preemptive policy.  So we always return false
- * to indicate we should not preempt.
+ * HRRN is a non preemptive policy, so simply always return
+ * false if asked to preempt.
  *
- * @returns bool Always returns false to indicate SPN never
- *   preempts.
+ * @returns bool Return true if a new process is arriving at the
+ *   current time.
  */
-bool SPNSchedulingPolicy::preempt()
+bool HRRNSchedulingPolicy::preempt()
 {
   return false;
 }
-
 
 /** 
  * @brief reset policy
@@ -122,6 +131,6 @@ bool SPNSchedulingPolicy::preempt()
  * we want to clear out the ready queue and make sure it is
  * empty to begin with.
  */
-void SPNSchedulingPolicy::resetPolicy()
+void HRRNSchedulingPolicy::resetPolicy()
 {
 }
